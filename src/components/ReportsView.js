@@ -1,16 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FinancialCharts from './FinancialCharts';
 
 const ReportsView = ({ monthlyData, monthlyExpenseData, currentMonthExpenses, onBackToDashboard }) => {
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const handlePrint = () => {
-    window.print(); // Función nativa del navegador para imprimir
+    window.print();
   };
 
   return (
     <div className="py-6">
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Reportes Financieros</h2>
+      
+      <div className="flex justify-center items-center space-x-4 mb-6">
+        <label htmlFor="startDate" className="text-gray-700">Desde:</label>
+        <input
+          type="date"
+          id="startDate"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <label htmlFor="endDate" className="text-gray-700">Hasta:</label>
+        <input
+          type="date"
+          id="endDate"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-6">
-        {/* Gráfico de Barras de Ingresos vs Gastos */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
           <FinancialCharts 
             monthlyData={monthlyData} 
@@ -38,4 +60,3 @@ const ReportsView = ({ monthlyData, monthlyExpenseData, currentMonthExpenses, on
 };
 
 export default ReportsView;
-// DONE

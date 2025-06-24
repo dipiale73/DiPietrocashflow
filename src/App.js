@@ -6,6 +6,7 @@ import NewTransactionForm from './components/NewTransactionForm';
 import MonthTabs from './components/MonthTabs';
 import YearTabs from './components/YearTabs';
 import ReportsView from './components/ReportsView';
+import AnnualTotalsView from './components/AnnualTotalsView';
 import { transactions as initialTransactions } from './mock/transactions';
 
 const App = () => {
@@ -13,7 +14,6 @@ const App = () => {
   const [showForm, setShowForm] = useState(false);
   const [activeMonth, setActiveMonth] = useState('Junio');
   const [activeYear, setActiveYear] = useState(new Date().getFullYear());
-  // Asegurarse de que initialTransactions sea un array, incluso si el mock está vacío o es undefined
   const [allTransactions, setAllTransactions] = useState(initialTransactions || []);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
 
@@ -22,7 +22,6 @@ const App = () => {
   const filterTransactions = (month, year) => {
     const monthIndex = months.indexOf(month);
     
-    // Asegurarse de que allTransactions sea un array antes de filtrar
     const filtered = (allTransactions || []).filter(transaction => {
       const transactionDate = new Date(transaction.date);
       return transactionDate.getMonth() === monthIndex && transactionDate.getFullYear() === year;
@@ -50,20 +49,26 @@ const App = () => {
     setActiveView('reports');
   };
 
+  const handleAnnualTotalsClick = () => {
+    setActiveView('annualTotals');
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
   };
 
   const handleAddTransaction = (newTransaction) => {
-    // Asegurarse de que allTransactions sea un array antes de calcular el nuevo ID
     const newId = (allTransactions || []).length > 0 ? Math.max(...(allTransactions || []).map(t => t.id)) + 1 : 1;
     const transactionWithId = { ...newTransaction, id: newId, amount: parseFloat(newTransaction.amount) };
     setAllTransactions(prevTransactions => [...(prevTransactions || []), transactionWithId]);
     handleCloseForm();
   };
 
+  const handleDeleteTransaction = (idToDelete) => {
+    setAllTransactions(prevTransactions => prevTransactions.filter(transaction => transaction.id !== idToDelete));
+  };
+
   const calculateSummaryData = () => {
-    // Asegurarse de que filteredTransactions sea un array antes de usarlo
     const currentFilteredTransactions = filteredTransactions || [];
 
     const sales = currentFilteredTransactions
@@ -76,19 +81,17 @@ const App = () => {
       Vehiculares: 0,
       Representación: 0,
       'Impuestos Directos': 0,
-      'Compra Mercadería': 0,
       Sueldos: 0,
       'Aportes Sociales': 0,
       'Otros Gastos': 0,
     };
 
     currentFilteredTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && t.category !== 'Compra Mercadería')
       .forEach(t => {
         if (expenses.hasOwnProperty(t.category)) {
           expenses[t.category] += t.amount;
         } else {
-          // Si la categoría no existe, se suma a 'Otros Gastos'
           expenses['Otros Gastos'] += t.amount;
         }
       });
@@ -103,7 +106,7 @@ const App = () => {
 
   const summaryDataProps = [
     { title: 'Ventas Mensuales', amount: sales, change: '+12%', positive: true, isSales: true, category: 'income' },
-    { title: 'Compra Mercadería', amount: expenses['Compra Mercadería'], change: '+15%', positive: false, category: 'expense' },
+    { title: 'Compra Mercadería', amount: filteredTransactions.filter(t => t.type === 'expense' && t.category === 'Compra Mercadería').reduce((sum, t) => sum + t.amount, 0), change: '+15%', positive: false, category: 'expense' },
     { title: 'Gastos Administrativos', amount: expenses['Administrativos'], change: '+3%', positive: false, category: 'expense' },
     { title: 'Gastos Servicios', amount: expenses['Servicios'], change: '+7%', positive: false, category: 'expense' },
     { title: 'Gastos Vehiculares', amount: expenses['Vehiculares'], change: '+10%', positive: false, category: 'expense' },
@@ -113,10 +116,10 @@ const App = () => {
     { title: 'Aportes Sociales', amount: expenses['Aportes Sociales'], change: '+4%', positive: false, category: 'expense' },
   ];
 
-  const prepareChartData = () => {
+  const prepareChartData = (transactionsToUse) => {
     const chartMonthlyData = months.map(monthName => {
       const monthIndex = months.indexOf(monthName);
-      const monthTransactions = (allTransactions || []).filter(t => {
+      const monthTransactions = (transactionsToUse || []).filter(t => {
         const tDate = new Date(t.date);
         return tDate.getMonth() === monthIndex && tDate.getFullYear() === activeYear;
       });
@@ -126,7 +129,7 @@ const App = () => {
         .reduce((sum, t) => sum + t.amount, 0);
 
       const monthExpensesTotal = monthTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && t.category !== 'Compra Mercadería')
         .reduce((sum, t) => sum + t.amount, 0);
       
       const monthSalaries = monthTransactions
@@ -151,20 +154,22 @@ const App = () => {
 
     const chartMonthlyExpenseData = months.map(monthName => {
       const monthIndex = months.indexOf(monthName);
-      const monthTransactions = (allTransactions || []).filter(t => {
+      const monthTransactions = (transactionsToUse || []).filter(t => {
         const tDate = new Date(t.date);
         return tDate.getMonth() === monthIndex && tDate.getFullYear() === activeYear;
       });
 
       const expensesByCategory = {
-        Administrativos: 0, Servicios: 0, Vehiculares: 0, Representación: 0, 'Impuestos Directos': 0, Sueldos: 0, 'Compra Mercadería': 0
+        Administrativos: 0, Servicios: 0, Vehiculares: 0, Representación: 0, 'Impuestos Directos': 0, Sueldos: 0, 'Aportes Sociales': 0, 'Otros Gastos': 0
       };
 
       monthTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && t.category !== 'Compra Mercadería')
         .forEach(t => {
           if (expensesByCategory.hasOwnProperty(t.category)) {
             expensesByCategory[t.category] += t.amount;
+          } else {
+            expensesByCategory['Otros Gastos'] += t.amount;
           }
         });
 
@@ -176,13 +181,13 @@ const App = () => {
         representation: expensesByCategory.Representación,
         directTaxes: expensesByCategory['Impuestos Directos'],
         salaries: expensesByCategory.Sueldos,
-        merchandise: expensesByCategory['Compra Mercadería'],
+        merchandise: monthTransactions.filter(t => t.type === 'expense' && t.category === 'Compra Mercadería').reduce((sum, t) => sum + t.amount, 0),
       };
     });
 
     const currentMonthExpensesForPie = {};
-    (filteredTransactions || [])
-      .filter(t => t.type === 'expense')
+    (transactionsToUse || [])
+      .filter(t => t.type === 'expense' && t.category !== 'Compra Mercadería')
       .forEach(t => {
         currentMonthExpensesForPie[t.category] = (currentMonthExpensesForPie[t.category] || 0) + t.amount;
       });
@@ -190,20 +195,21 @@ const App = () => {
     return { chartMonthlyData, chartMonthlyExpenseData, currentMonthExpensesForPie };
   };
 
-  const { chartMonthlyData, chartMonthlyExpenseData, currentMonthExpensesForPie } = prepareChartData();
+  const { chartMonthlyData, chartMonthlyExpenseData, currentMonthExpensesForPie } = prepareChartData(allTransactions);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <FinancesHeader 
         onNewMovementClick={handleNewMovementClick} 
         onReportsClick={handleReportsClick} 
+        onAnnualTotalsClick={handleAnnualTotalsClick}
       />
       
       <main className="container mx-auto px-4 py-6">
         <YearTabs activeYear={activeYear} onSelectYear={handleYearSelect} />
         <MonthTabs activeMonth={activeMonth} onSelectMonth={handleMonthSelect} />
         
-        {activeView === 'dashboard' ? (
+        {activeView === 'dashboard' && (
           <>
             <FinancialSummary summaryData={summaryDataProps} totalExpensesAmount={totalExpensesAmount} balance={balance} />
             
@@ -217,7 +223,7 @@ const App = () => {
               </button>
             </div>
             
-            <TransactionTable transactions={filteredTransactions} />
+            <TransactionTable transactions={filteredTransactions} onDeleteTransaction={handleDeleteTransaction} />
             
             {showForm && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -233,12 +239,21 @@ const App = () => {
               </div>
             )}
           </>
-        ) : (
+        )}
+
+        {activeView === 'reports' && (
           <ReportsView 
             monthlyData={chartMonthlyData} 
             monthlyExpenseData={chartMonthlyExpenseData} 
             currentMonthExpenses={currentMonthExpensesForPie} 
             onBackToDashboard={() => setActiveView('dashboard')}
+          />
+        )}
+
+        {activeView === 'annualTotals' && (
+          <AnnualTotalsView 
+            allTransactions={allTransactions} 
+            activeYear={activeYear} 
           />
         )}
       </main>
